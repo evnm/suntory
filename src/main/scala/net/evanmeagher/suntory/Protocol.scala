@@ -1,72 +1,94 @@
 package net.evanmeagher.suntory
 
-import java.nio.ByteBuffer
 import scala.collection.SeqProxy
 
-object Protocol {
-  /**
-   * A base trait for state machine transitions.
-   */
-  sealed trait Edge
+/**
+ * A base trait for state machine transitions.
+ */
+sealed abstract class Transition[+A]
 
-  /**
-   * A self-loop. No consumable input, so we remain at the current state.
-   */
-  case object Loop extends Edge
+/**
+ * A self-loop. No consumable input, so we remain at the current state.
+ */
+case object Loop extends Transition[Nothing]
 
-  /**
-   * Walk an edge defined by a decoded segment of a length.
-   *
-   * TODO: Better class name.
-   *
-   * @param length the length of the segment defined by this Visit
-   */
-  case class Visit(length: Int) extends Edge
+/**
+ * Traverse an edge to a given [[net.evanmeagher.suntory.State State]].
+ */
+case class GoTo[A](destination: State[A]) extends Transition[A]
 
-  /**
-   * An edge to the failed state. A given `Throwable` was encountered, so no
-   * further progress is possible. A state machine implementation may choose
-   * whether to reset itself or fail entirely on `Error` transitions.
-   */
-  case class Error(throwable: Throwable) extends Edge
+/**
+ * A state defined by the edges that the machine has traversed.
+ *
+ * `self` contains the values along the path traveled to the given State.
+ */
+sealed abstract class State[+A] extends SeqProxy[A]
 
-  /**
-   * A state defined by the edges that the machine has traversed.
-   *
-   * `self` contains the lengths of each ordered, contiguous segment of `buf`
-   * that contain the data of tokens representing messages of type `A`.
-   */
-  sealed trait State extends SeqProxy[Int] {
-    /**
-     * All data buffered up to the time of this state machine traversal.
-     */
-    val buf: ByteBuffer
+/**
+ * The initial state of any state machine.
+ */
+case object InitialState extends State[Nothing] {
+  val self = Seq.empty[Nothing]
+}
+
+/**
+ * A failed state. A given `Throwable` was encountered, so no further progress
+ * is possible. A state machine implementation may choose whether to reset
+ * itself or fail entirely when an `Error` state is reached.
+ */
+case class Error(throwable: Throwable) extends State[Nothing] {
+  val self = Seq.empty[Nothing]
+}
+
+/**
+ * A [[net.evanmeagher.suntory.State State]] that buffers input. Used to define
+ * state machines that consume input incrementally until a production condition
+ * is met before transitioning to a [[net.evanmeagher.suntory.ProducerState]].
+ */
+case class BufferState[A](self: Seq[A]) extends State[A]
+
+/**
+ * A [[net.evanmeagher.suntory.State State]] that produces a value of type `B`.
+ * Output is based on a sequence of * values of type `A` defined by the path taken to arrive at this state.
+ */
+abstract class ProducerState[A, B](
+  self: Seq[A],
+  builder: Seq[A] => B
+) extends State[A] {
+  lazy val value: B = builder(self)
+  override lazy val toString = "ProducerState(%s)".format(value)
+}
+
+/**
+ * A state machine defined by a state transition table.
+ */
+class Automaton[A, B](
+  stateTable: PartialFunction[(State[A], A), Transition[A]]
+) {
+  private[this] val liftedStateTable = stateTable.lift
+  private[this] var currentState: State[A] = InitialState
+
+  def apply(input: A): State[A] = {
+    liftedStateTable(currentState, input) match {
+      case Some(Loop) => currentState
+
+      case Some(GoTo(bufState@BufferState(self))) =>
+        currentState = BufferState(self :+ input)
+
+      case Some(other) =>
+        // TODO
+        other
+
+      case None =>
+        currentState = Error(new IllegalStateException(
+          "No transition possible for state=%s and input=%s".format(currentState, input)
+        ))
+    }
+
+    currentState
   }
 
-  /**
-   * The initial state of any state machine.
-   */
-  case class InitialState(buf: ByteBuffer) extends State {
-    val self = Seq.empty[Int]
-  }
-
-  /**
-   * An internal, non-terminal state defined by a sequence of
-   * previously-traversed edges and a buffer. The reader index of `buf` must be
-   * equal to `self.sum`.
-   */
-  case class NonTerminalState(self: Seq[Int], buf: ByteBuffer) extends State
-
-  /**
-   * A terminal state of a given graph traversal. Given a sequence of indices
-   * defining segments of `buf`, `builder` will produce an object of type `A`.
-   * corresponding segments.
-   */
-  case class TerminalState[+A](
-    self: Seq[Int],
-    buf: ByteBuffer,
-    builder: (Seq[Int], ByteBuffer) => A
-  ) extends State {
-    lazy val value: A = builder(self, buf)
+  def reset() {
+    currentState = InitialState
   }
 }
