@@ -1,5 +1,5 @@
 # Suntory
 
-A Scala protocol builder.
+A Scala state machine library.
 
 https://www.youtube.com/watch?v=_saLrADKqNM
