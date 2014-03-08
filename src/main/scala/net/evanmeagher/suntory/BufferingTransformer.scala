@@ -13,7 +13,20 @@ import scala.collection.mutable.{ArrayBuffer, Buffer}
  * @param consume A PartialFunction mapping sequences of the input type A to a
  * tuple of the produced B value and remainder sequence of input
  */
-case class BufferingTransformer[A: ClassManifest, B](consume: PartialFunction[Seq[A], (B, Seq[A])]) {
+case class BufferingTransformer[A: ClassManifest, B](
+  consume: PartialFunction[Seq[A], (B, Seq[A])])
+{ self =>
+  // Empty constructor for use by `andThen`. Null PartialFunction copied from
+  // Scala 2.10.3 source because 2.9.3 has no `PartialFunction#empty`.
+  private[this] val empty_pf = new PartialFunction[Any, Nothing] {
+    def isDefinedAt(x: Any) = false
+    def apply(x: Any) = throw new MatchError(x)
+    override def orElse[A1, B1](that: PartialFunction[A1, B1]) = that
+    override def andThen[C](k: Nothing => C) = this
+    override val lift = (x: Any) => None
+  }
+
+  // TODO: Mitigate unbounded queueing.
   private[this] val buf = new ArrayBuffer[A]
 
   /**
@@ -30,6 +43,22 @@ case class BufferingTransformer[A: ClassManifest, B](consume: PartialFunction[Se
       Some(result)
     } else {
       None
+    }
+  }
+
+  /**
+   * Compose this BufferingTransformer with another whose input type matches
+   * `this`s output type.
+   */
+  def andThen[C](other: BufferingTransformer[B, C]): BufferingTransformer[A, C] = {
+    new BufferingTransformer[A, C](empty_pf) {
+      override def apply(input: A): Option[C] =
+        self.apply(input) flatMap other.apply
+
+      override def reset() {
+        self.reset()
+        other.reset()
+      }
     }
   }
 
