@@ -1,7 +1,6 @@
 package net.evanmeagher.suntory
 
-import com.twitter.util.Future
-import scala.collection.mutable.{ArrayBuffer, Buffer}
+import scala.collection.mutable.ArrayBuffer
 
 /**
  * A buffered data transformation. Input passed to `apply` is buffered until the
@@ -13,7 +12,7 @@ import scala.collection.mutable.{ArrayBuffer, Buffer}
  * @param consume A PartialFunction mapping sequences of the input type A to a
  * tuple of the produced B value and remainder sequence of input
  */
-case class BufferingTransformer[A: ClassManifest, B](
+class BufferingTransformer[A: ClassManifest, B](
   consume: PartialFunction[Seq[A], (B, Seq[A])])
 { self =>
   // Empty constructor for use by `andThen`. Null PartialFunction copied from
@@ -76,47 +75,9 @@ case class BufferingTransformer[A: ClassManifest, B](
  *
  * TODO: delimiter as Seq?
  */
-case class DelimitingTransformer[A: ClassManifest](delimiter: A)
+class DelimitingTransformer[A: ClassManifest](delimiter: A)
   extends BufferingTransformer[A, Seq[A]]({
     case input if input.contains(delimiter) =>
       input.splitAt(input.indexOf(delimiter))
   })
 
-
-
-/**
- * An adapter for connecting two async read and write interfaces together with
- * a [[net.evanmeagher.suntory.BufferingTransformer BufferingTransformer]].
- */
-trait Adapter[A, B] {
-  val transformer: BufferingTransformer[A, B]
-  def read(): Future[A]
-  def write(value: B): Future[Unit]
-
-  private[this] def loop(): Future[Unit] = {
-    read() flatMap { input =>
-      (transformer(input) match {
-        case Some(value) => write(value)
-        case _ => Future.Done
-      }) before loop()
-    }
-  }
-  loop()
-}
-
-/**
- * An [[net.evanmeagher.suntory.Adapter Adapter] that reads input from a static
- * Buffer and writes output to Console.out.
- */
-class ConsoleAdapter[A, B](
-    val transformer: BufferingTransformer[A, B],
-    input: Buffer[A])
-  extends Adapter[A, B]
-{
-  def read() = Future.value(input.remove(0))
-
-  def write(value: B) = {
-    println(value)
-    Future.Done
-  }
-}
