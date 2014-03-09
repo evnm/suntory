@@ -71,6 +71,20 @@ case class BufferingTransformer[A: ClassManifest, B](
 }
 
 /**
+ * A [[net.evanmeagher.suntory.BufferingTransformer BufferingTransformer]] that
+ * frames input based on a delimiter of the input type `A`.
+ *
+ * TODO: delimiter as Seq?
+ */
+case class DelimitingTransformer[A: ClassManifest](delimiter: A)
+  extends BufferingTransformer[A, Seq[A]]({
+    case input if input.contains(delimiter) =>
+      input.splitAt(input.indexOf(delimiter))
+  })
+
+
+
+/**
  * An adapter for connecting two async read and write interfaces together with
  * a [[net.evanmeagher.suntory.BufferingTransformer BufferingTransformer]].
  */
