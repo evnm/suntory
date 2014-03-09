@@ -33,9 +33,10 @@ case class BufferingTransformer[A: ClassManifest, B](
    * On input consumption, the buffer is shifted accordingly and results
    * are returned.
    */
-  def apply(input: A): Option[B] = {
-    buf += input
+  def apply(input: Iterable[A]): Option[B] = {
+    buf ++= input
 
+    // TODO: Support multiple `consume` emissions per application?
     if (consume.isDefinedAt(buf)) {
       val (result, remainder) = consume(buf)
       buf.clear()
@@ -45,6 +46,8 @@ case class BufferingTransformer[A: ClassManifest, B](
       None
     }
   }
+
+  def apply(input: A): Option[B] = apply(Seq(input))
 
   /**
    * Compose this BufferingTransformer with another whose input type matches
