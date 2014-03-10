@@ -15,8 +15,10 @@ trait Adapter[A, B] {
   private[this] def loop(): Future[Unit] = {
     read() flatMap { input =>
       (transformer(input) match {
-        case Some(value) => write(value)
-        case _ => Future.Done
+        case Nil => Future.Done
+        case results if results.nonEmpty => Future.join {
+          results map write
+        }
       }) before loop()
     }
   }
