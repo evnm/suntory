@@ -2,7 +2,9 @@ package net.evanmeagher.suntory
 
 import org.scalatest.FunSuite
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.mock.MockitoSugar
 import org.junit.runner.RunWith
+import scala.collection.mutable.ArrayBuffer
 
 @RunWith(classOf[JUnitRunner])
 class BufferingTransformerTest extends FunSuite {
@@ -32,6 +34,21 @@ class BufferingTransformerTest extends FunSuite {
 
     assert(composed(9) === Nil)
     assert(composed(5) === Seq("14"))
+  }
+
+  test("BufferingTransformer.reset: should clear underlying buffer") {
+    // A transformer that buffers all input.
+    val buf = new ArrayBuffer[Int]
+    assert(buf.size == 0, "initial buffer size was non-zero")
+    val transformer = new BufferingTransformer[Int, Int](
+      { case input => (Seq.empty, input) },
+      buf
+    )
+
+    assert(transformer(14) === Nil, "transformer output was non-nil")
+    assert(buf.size == 1)
+    transformer.reset()
+    assert(buf.size == 0, "buffer size after `BufferingTransformer.reset()` was non-zero")
   }
 
   test("CharEncodingByteTransformer.apply: should convert byte-arrays to strings") {

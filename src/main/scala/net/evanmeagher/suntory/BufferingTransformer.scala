@@ -1,7 +1,7 @@
 package net.evanmeagher.suntory
 
 import java.nio.charset.Charset
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, Buffer}
 
 object BufferingTransformer {
   // Empty constructor for use by `andThen`. Null PartialFunction copied from
@@ -33,11 +33,9 @@ object BufferingTransformer {
  * tuple of the produced B value and remainder sequence of input
  */
 class BufferingTransformer[A: ClassManifest, B](
-  consume: PartialFunction[Seq[A], (Seq[B], Seq[A])])
+  consume: PartialFunction[Seq[A], (Seq[B], Seq[A])],
+  buf: Buffer[A] = new ArrayBuffer[A])
 { self =>
-  // TODO: Mitigate unbounded queueing.
-  private[this] val buf = new ArrayBuffer[A]
-
   /**
    * On input consumption, the buffer is shifted accordingly and results
    * are returned.
