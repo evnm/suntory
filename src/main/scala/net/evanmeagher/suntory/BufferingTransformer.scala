@@ -13,6 +13,13 @@ object BufferingTransformer {
     override def andThen[C](k: Nothing => C) = this
     override val lift = (x: Any) => None
   }
+
+  /**
+   * A no-op BufferingTransformer.
+   */
+  def identity[A: ClassManifest] = new BufferingTransformer[A, A]({
+    case input => (input, Seq.empty)
+  })
 }
 
 /**
