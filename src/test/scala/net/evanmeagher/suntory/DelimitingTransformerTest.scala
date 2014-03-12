@@ -27,7 +27,7 @@ class DelimitingTransformerTest extends FunSuite {
     val lineDecoder = (new LineReadingByteTransformer)
       .andThen(new CharEncodingByteTransformer("UTF-8"))
 
-    assert(lineDecoder("hello\nthere".getBytes) === "hello".toSeq.map(_.toString))
-    assert(lineDecoder("\nfoo".getBytes) === "there".toSeq.map(_.toString))
+    assert(lineDecoder("hello\nthere".getBytes).mkString === "hello")
+    assert(lineDecoder("\nfoo".getBytes).mkString === "there")
   }
 }

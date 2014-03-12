@@ -77,8 +77,8 @@ class BufferingTransformer[A: ClassManifest, B](
  * converts byte arrays to strings according to a given character set encoding.
  */
 class CharEncodingByteTransformer(charset: Charset)
-  extends BufferingTransformer[Byte, String]({
-    case input => (Seq(new String(input.toArray, charset)), Seq.empty)
+  extends BufferingTransformer[Byte, Char]({
+    case input => (new String(input.toArray, charset), Seq.empty)
   })
 {
   def this(charsetName: String) = this(Charset.forName(charsetName))

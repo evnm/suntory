@@ -37,7 +37,7 @@ class BufferingTransformerTest extends FunSuite {
   test("CharEncodingByteTransformer.apply: should convert byte-arrays to strings") {
     val encoder = new CharEncodingByteTransformer("UTF-8")
 
-    assert(encoder("hello".getBytes) === Seq("hello"))
-    assert(encoder("there".getBytes) === Seq("there"))
+    assert(encoder("hello".getBytes).mkString === "hello")
+    assert(encoder("there".getBytes).mkString === "there")
   }
 }
