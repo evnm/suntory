@@ -47,7 +47,10 @@ class BufferingTransformer[A: ClassManifest, B](
 
     // TODO: Support multiple `consume` emissions per application?
     if (consume.isDefinedAt(buf)) {
-      val (result, remainder) = consume(buf)
+      // Make a copy of `buf` in order to prevent `consume` from modifying it.
+      val dup = new Array[A](buf.size)
+      buf.copyToArray(dup)
+      val (result, remainder) = consume(dup)
       buf.clear()
       buf ++= remainder
       result
